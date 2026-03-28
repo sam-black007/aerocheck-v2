@@ -1,129 +1,101 @@
 # aeroCheck - Model Aircraft Flight Calculator & Weather Tracker
 
-A comprehensive flight planning tool for hobbyist RC pilots featuring accurate aviation physics calculations, real-time weather data, and live aircraft tracking.
+A comprehensive aviation dashboard with flight planning tools, real-time weather, and live aircraft tracking.
 
 ## Live Demo
 
-🚀 **https://sam-black007.github.io/aerocheck-full/**
+🚀 **https://aerocheck-v2.vercel.app**
+
+## Deploy to Vercel
+
+### Option 1: One-Click Deploy (Recommended)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/sam-black007/aerocheck-v2)
+
+### Option 2: Vercel CLI
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+cd aerocheck-v2
+vercel
+
+# Production deploy
+vercel --prod
+```
+
+### Option 3: GitHub Integration
+
+1. Go to [vercel.com](https://vercel.com)
+2. Click "New Project"
+3. Import `sam-black007/aerocheck-v2`
+4. Vercel auto-detects Vite framework
+5. Click "Deploy"
 
 ## Features
 
 ### 🧮 Flight Calculator
-- 15 aircraft types with accurate physics engine
-- Lift coefficient (Cl) & drag coefficient (Cd)
-- Stall speed, cruise speed, max speed
-- Rate of climb (ROC), glide ratio
-- Turn radius and turn rate
-- Wing loading & thrust-to-weight ratio
-- Stability factor, CG position
-- Motor & propeller efficiency
-- Service ceiling calculation
+- 15 aircraft types with physics calculations
+- Lift/Drag coefficients, stall speed, glide ratio
+- Turn performance, rate of climb
 
-### 🌤️ Weather Integration (7 APIs)
-- OpenWeatherMap, WeatherAPI, Tomorrow.io
-- AVWX (Aviation Weather), NOAA
-- Air Quality Index (OpenAQ)
-- Solar information (sunrise/sunset)
-- Weather alerts for flying conditions
+### 🌤️ Weather Integration
+- Real-time weather from Open-Meteo
+- Air quality index
+- Solar information
 
 ### 🎮 Weather Simulator
-- Adjust temperature (-20°C to +50°C)
-- Adjust wind speed, humidity, altitude
-- Calculate density altitude impact
+- Density altitude calculator
 - Performance impact analysis
-
-### 📍 Flight Tracking
-- GPS route logging
-- Altitude and speed tracking
-- Battery consumption monitoring
-- G-force logging
-- Export to JSON
 
 ### ✈️ Live Flight Tracking
 - Real-time aircraft positions via OpenSky Network
-- Searchable flight list
-- Detailed flight information:
-  - Callsign, origin country
-  - Altitude, speed, heading
-  - Vertical rate (climbing/descending)
-  - Squawk code
-- Position on map (Google Maps link)
+- Interactive map with aircraft markers
+- Flight details: altitude, speed, heading
+
+### 📍 Flight Tracking
+- GPS route logging
+- Battery monitoring
+- Export to JSON
 
 ### 📊 Analytics Dashboard
 - Flight history charts
 - Performance trends
-- Personal records
-- Aircraft usage statistics
-
-### ⚖️ Model Comparison
-- Side-by-side aircraft comparison
-- Performance radar chart
-- Best model recommendation
 
 ## Tech Stack
 
-- React 18 - UI framework
-- TypeScript - Type safety
-- Tailwind CSS - Styling
-- Vite - Build tool
-- React Router - Navigation
-- Recharts - Data visualization
-- IndexedDB - Local storage
+- React 18 + TypeScript
+- Tailwind CSS
+- Vite
+- Leaflet (maps)
+- Recharts
+- IndexedDB
 
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- npm or yarn or pnpm
-
-### Installation
+## Local Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/sam-black007/aerocheck-full.git
-cd aerocheck-full
+# Clone
+git clone https://github.com/sam-black007/aerocheck-v2.git
+cd aerocheck-v2
 
 # Install dependencies
 npm install
 
-# Start development server
+# Start dev server
 npm run dev
 
 # Build for production
 npm run build
 ```
 
-## Pages
-
-| Route | Description |
-|-------|-------------|
-| `/` | Dashboard - overview and quick timer |
-| `/calculator` | Flight performance calculator |
-| `/simulator` | Weather impact simulator |
-| `/weather` | Live weather & air quality |
-| `/flights` | Flight log and GPS tracking |
-| `/live` | Live aircraft tracking |
-| `/models` | Aircraft database |
-| `/analytics` | Flight analytics charts |
-| `/compare` | Model comparison |
-| `/settings` | Configuration |
-
 ## Data Sources
 
-### Weather APIs (Optional API Keys)
-- OpenWeatherMap - 60 calls/min
-- WeatherAPI - 1M calls/month
-- Tomorrow.io - 500 calls/day
-- NOAA - Free
-
-### Live Flight Data
-- **OpenSky Network** - Real-time ADS-B flight tracking (free for non-commercial use)
-  - No API key required
-  - Updates every 30 seconds
-  - Covers Europe and parts of North America
-
-Add API keys in Settings page for premium features.
+- **Weather**: Open-Meteo API (free, no key)
+- **Flights**: OpenSky Network (free ADS-B data)
+- **Maps**: CartoDB Dark Tiles (free)
 
 ## License
 
-MIT License
+MIT
