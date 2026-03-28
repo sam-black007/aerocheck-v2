@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #09090b;
+  color: #fafafa;
+  min-height: 100vh;
+}
+
+@layer components {
+  .card {
+    @apply bg-bg-card border border-zinc-700/50 rounded-2xl p-6 transition-all duration-300 hover:border-primary hover:shadow-lg hover:shadow-primary/10;
+  }
+  
+  .metric-card {
+    @apply bg-bg-card border border-zinc-700/50 rounded-2xl p-6 text-center relative overflow-hidden;
+  }
+  
+  .metric-card::before {
+    content: '';
+    @apply absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-secondary opacity-0 transition-opacity;
+  }
+  
+  .metric-card:hover::before {
+    @apply opacity-100;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 cursor-pointer border-none;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/30 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/40;
+  }
+  
+  .btn-secondary {
+    @apply bg-bg-elevated text-white border border-zinc-600 hover:border-primary;
+  }
+  
+  .btn-success {
+    @apply bg-gradient-to-r from-accent to-emerald-600 text-white shadow-lg shadow-accent/30;
+  }
+  
+  .form-input {
+    @apply w-full px-4 py-3 bg-bg border border-zinc-700 rounded-xl text-white text-sm transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+  
+  .form-label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2;
+  }
+  
+  .nav-link {
+    @apply px-4 py-2 rounded-lg text-zinc-400 font-medium transition-all hover:text-white hover:bg-bg-elevated;
+  }
+  
+  .nav-link.active {
+    @apply text-primary bg-primary/10;
+  }
+  
+  .result-item {
+    @apply bg-bg rounded-xl p-4 text-center border border-zinc-700/50;
+  }
+  
+  .aircraft-btn {
+    @apply p-4 bg-bg border-2 border-zinc-700 rounded-xl cursor-pointer transition-all text-center;
+  }
+  
+  .aircraft-btn:hover {
+    @apply border-primary bg-primary/5;
+  }
+  
+  .aircraft-btn.selected {
+    @apply border-primary bg-primary/10;
+  }
+  
+  .alert {
+    @apply p-4 rounded-xl flex items-center gap-3 text-sm font-medium;
+  }
+  
+  .alert-success {
+    @apply bg-emerald-500/10 border border-emerald-500/30 text-emerald-400;
+  }
+  
+  .alert-warning {
+    @apply bg-amber-500/10 border border-amber-500/30 text-amber-400;
+  }
+  
+  .alert-danger {
+    @apply bg-red-500/10 border border-red-500/30 text-red-400;
+  }
+}
