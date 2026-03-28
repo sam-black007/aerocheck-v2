@@ -12,6 +12,8 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Radio,
+  Navigation,
 } from 'lucide-react';
 import { useGpsTracking, calculateTotalDistance } from '../hooks/useGpsTracking';
 import { getAllFlights } from '../lib/db';
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [flights, setFlights] = useState<FlightData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [liveStats, setLiveStats] = useState({ total: 0, inAir: 0 });
   const timerRef = useRef(0);
   const [timerDisplay, setTimerDisplay] = useState('00:00');
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -38,6 +41,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData();
+    loadLiveFlights();
   }, []);
 
   useEffect(() => {
@@ -74,6 +78,23 @@ export default function Dashboard() {
       console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadLiveFlights() {
+    try {
+      const response = await fetch(
+        'https://opensky-network.org/api/states/all?lamin=35&lomin=-15&lamax=72&lomax=35'
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.states) {
+          const inAir = data.states.filter((s: any[]) => !s[8]).length;
+          setLiveStats({ total: data.states.length, inAir });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load live flights:', error);
     }
   }
 
@@ -142,7 +163,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           label="Total Flights"
           value={flights.length.toString()}
@@ -168,9 +189,16 @@ export default function Dashboard() {
           icon={Wind}
           valueColor={flyingStatus.color}
         />
+        <MetricCard
+          label="Live Aircraft"
+          value={liveStats.total > 0 ? liveStats.total.toLocaleString() : '--'}
+          unit={`${liveStats.inAir} in air`}
+          icon={Radio}
+          valueColor="text-purple-400"
+        />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* Weather Card */}
         <div className="card">
           <div className="flex items-center justify-between mb-6">
@@ -208,6 +236,49 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Live Flights Card */}
+        <div className="card bg-gradient-to-br from-purple-500/5 to-purple-600/5 border-purple-500/20">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Radio className="w-5 h-5 text-purple-400" />
+              Live Flights
+            </h2>
+            <Link to="/live" className="text-sm text-purple-400 hover:underline font-medium">
+              View All →
+            </Link>
+          </div>
+
+          <div className="text-center py-6">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-3 h-3 rounded-full bg-purple-400 animate-pulse" />
+              <span className="text-sm text-purple-400 font-medium">Real-time Tracking</span>
+            </div>
+            
+            <div className="text-5xl font-bold text-purple-400 mb-2">
+              {liveStats.total > 0 ? liveStats.total.toLocaleString() : '--'}
+            </div>
+            <div className="text-zinc-400">aircraft visible</div>
+
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="bg-bg/50 rounded-xl p-4">
+                <Navigation className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
+                <div className="text-xl font-bold text-emerald-400">{liveStats.inAir}</div>
+                <div className="text-xs text-zinc-500">In Air</div>
+              </div>
+              <div className="bg-bg/50 rounded-xl p-4">
+                <Plane className="w-5 h-5 mx-auto mb-2 text-zinc-400" />
+                <div className="text-xl font-bold">{liveStats.total - liveStats.inAir}</div>
+                <div className="text-xs text-zinc-500">On Ground</div>
+              </div>
+            </div>
+
+            <Link to="/live" className="btn btn-primary w-full mt-6">
+              <Radio className="w-4 h-4" />
+              Track Live Aircraft
+            </Link>
+          </div>
+        </div>
+
         {/* Quick Timer */}
         <div className="card">
           <div className="flex items-center justify-between mb-6">
@@ -217,8 +288,8 @@ export default function Dashboard() {
             </h2>
           </div>
 
-          <div className="text-center py-8 bg-gradient-to-b from-accent/10 to-transparent rounded-xl mb-6">
-            <div className="text-6xl font-bold font-mono text-accent">{timerDisplay}</div>
+          <div className="text-center py-6 bg-gradient-to-b from-accent/10 to-transparent rounded-xl mb-6">
+            <div className="text-5xl font-bold font-mono text-accent">{timerDisplay}</div>
             <div className="text-zinc-400 mt-2">
               {isTracking ? 'Recording flight...' : 'Ready to fly'}
             </div>
@@ -226,7 +297,7 @@ export default function Dashboard() {
 
           <button
             onClick={toggleTimer}
-            className={`btn btn-lg w-full ${isTimerRunning ? 'btn-danger' : 'btn-success'}`}
+            className={`btn btn-lg w-full ${isTimerRunning ? 'bg-red-500 hover:bg-red-600' : 'btn-success'}`}
           >
             {isTimerRunning ? (
               <>
@@ -325,7 +396,7 @@ function MetricCard({
         <Icon className="w-4 h-4" />
         {label}
       </div>
-      <div className={`text-3xl font-bold ${valueColor || 'text-white'}`}>{value}</div>
+      <div className={`text-2xl lg:text-3xl font-bold ${valueColor || 'text-white'}`}>{value}</div>
       <div className="text-sm text-zinc-500">{unit}</div>
     </div>
   );
