@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aeroCheck - Model Aircraft Flight Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #60a5fa;
+            --secondary: #8b5cf6;
+            --accent: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #09090b;
+            --bg-secondary: #18181b;
+            --bg-elevated: #27272a;
+            --bg-card: #1c1c1f;
+            --border: #3f3f46;
+            --text: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .mono {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .nav-inner {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .nav-link {
+            padding: 8px 14px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+            background: var(--bg-elevated);
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        /* Main Layout */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 88px 24px 32px;
+            min-height: 100vh;
+        }
+
+        /* Page System */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Header */
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title .icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Grid System */
+        .grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        @media (max-width: 1024px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                background: var(--bg);
+                flex-direction: column;
+                padding: 16px;
+                border-bottom: 1px solid var(--border);
+                gap: 4px;
+            }
+
+            .nav-links.open {
+                display: flex;
+            }
+
+            .mobile-toggle {
+                display: block;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .page-title .icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+
+        /* Metric Cards */
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .metric-card:hover::before {
+            opacity: 1;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--text), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .metric-unit {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .metric-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            margin-top: 8px;
+        }
+
+        .metric-trend.up {
+            color: var(--accent);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .metric-trend.down {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--primary);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent), #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.75rem;
+        }
+
+        .btn-lg {
+            padding: 16px 32px;
+            font-size: 1rem;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-icon {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 10px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 48px;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Range Slider */
+        .range-group {
+            margin-bottom: 24px;
+        }
+
+        .range-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .range-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: 'SF Mono', monospace;
+            color: var(--primary);
+        }
+
+        .form-range {
+            width: 100%;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .form-range::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .form-range::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Aircraft Type Grid */
+        .aircraft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .aircraft-btn {
+            padding: 16px 12px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .aircraft-btn:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .aircraft-btn.selected {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .aircraft-btn .icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 10px;
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .aircraft-btn:hover .icon,
+        .aircraft-btn.selected .icon {
+            background: var(--primary);
+            color: white;
+        }
+
+        .aircraft-btn .name {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Weather Display */
+        .weather-main {
+            text-align: center;
+            padding: 32px;
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, transparent 100%);
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .weather-icon {
+            font-size: 5rem;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .weather-temp {
+            font-size: 4rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .weather-desc {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            text-transform: capitalize;
+        }
+
+        .weather-location {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .weather-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .weather-detail {
+            text-align: center;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 12px;
+        }
+
+        .weather-detail .icon {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .weather-detail .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .weather-detail .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Flight Timer */
+        .timer-display {
+            font-size: 5rem;
+            font-weight: 800;
+            font-family: 'SF Mono', monospace;
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(180deg, var(--bg) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border-radius: 20px;
+            margin-bottom: 24px;
+            line-height: 1;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        /* Results */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+        }
+
+        .result-item {
+            background: var(--bg);
+            padding: 20px 16px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .result-item .label {
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .result-item .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: 'SF Mono', monospace;
+            color: var(--primary);
+        }
+
+        .result-item .unit {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Suitability Score */
+        .score-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px;
+        }
+
+        .score-ring {
+            position: relative;
+            width: 160px;
+            height: 160px;
+        }
+
+        .score-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .score-bg {
+            fill: none;
+            stroke: var(--bg);
+            stroke-width: 12;
+        }
+
+        .score-progress {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 440;
+            stroke-dashoffset: 440;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .score-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: 800;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .score-label {
+            margin-top: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.875rem;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        /* Flight Log */
+        .flight-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .flight-item:hover {
+            background: var(--bg-elevated);
+        }
+
+        .flight-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .flight-info {
+            flex: 1;
+        }
+
+        .flight-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .flight-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 16px;
+        }
+
+        .flight-duration {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: 'SF Mono', monospace;
+            color: var(--accent);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-elevated);
+            color: var(--text);
+        }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table th {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            background: var(--bg);
+        }
+
+        .table td {
+            font-family: 'SF Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        .table tr:hover td {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state .icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: var(--bg-elevated);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 20px 24px;
+            margin-top: 48px;
+        }
+
+        .footer-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 640px) {
+            .footer-inner {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        /* Utility */
+        .mt-4 { margin-top: 16px; }
+        .mt-6 { margin-top: 24px; }
+        .mt-8 { margin-top: 32px; }
+        .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mb-8 { margin-bottom: 32px; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 8px; }
+        .gap-4 { gap: 16px; }
+        .gap-6 { gap: 24px; }
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .text-primary { color: var(--primary); }
+        .text-success { color: var(--accent); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-inner">
+            <a href="#" class="logo" onclick="showPage('dashboard')">
+                <div class="logo-icon">✈</div>
+                <span>aeroCheck</span>
+            </a>
+            <div class="nav-links" id="navLinks">
+                <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-link" data-page="calculator">Calculator</a>
+                <a href="#" class="nav-link" data-page="weather">Weather</a>
+                <a href="#" class="nav-link" data-page="simulator">Simulator</a>
+                <a href="#" class="nav-link" data-page="flights">Flights</a>
+                <a href="#" class="nav-link" data-page="models">Models</a>
+                <a href="#" class="nav-link" data-page="compare">Compare</a>
+            </div>
+            <button class="mobile-toggle" onclick="toggleMobileMenu()">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <main class="main">
+        <!-- Dashboard -->
+        <section id="page-dashboard" class="page active">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">🏠</span>
+                    Dashboard
+                </h1>
+                <p class="page-subtitle">Your flight overview and current conditions</p>
+            </div>
+
+            <div class="alert alert-success mb-6">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                <span id="flightConditionText">Weather conditions are excellent for flying!</span>
+            </div>
+
+            <div class="grid grid-4 mb-8">
+                <div class="metric-card">
+                    <div class="metric-label">Total Flights</div>
+                    <div class="metric-value" id="totalFlights">0</div>
+                    <div class="metric-unit">recorded</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Flight Time</div>
+                    <div class="metric-value" id="totalFlightTime">0:00</div>
+                    <div class="metric-unit">hours</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Best Score</div>
+                    <div class="metric-value" id="bestScore">--</div>
+                    <div class="metric-unit">suitability</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Conditions</div>
+                    <div class="metric-value" id="conditionScore" style="-webkit-text-fill-color: var(--accent);">Good</div>
+                    <div class="metric-unit">flying status</div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">🌤️</span>
+                            Current Weather
+                        </h3>
+                    </div>
+                    <div class="weather-main">
+                        <div class="weather-icon" id="dashWeatherIcon">☀️</div>
+                        <div class="weather-temp" id="dashTemp">--°C</div>
+                        <div class="weather-desc" id="dashDesc">Loading...</div>
+                        <div class="weather-location">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span id="dashLocation">Detecting...</span>
+                        </div>
+                    </div>
+                    <div class="weather-details">
+                        <div class="weather-detail">
+                            <div class="icon">💨</div>
+                            <div class="value" id="dashWind">--</div>
+                            <div class="label">Wind (km/h)</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="icon">💧</div>
+                            <div class="value" id="dashHumidity">--</div>
+                            <div class="label">Humidity (%)</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="icon">👁</div>
+                            <div class="value" id="dashVisibility">--</div>
+                            <div class="label">Visibility (km)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">⏱</span>
+                            Quick Timer
+                        </h3>
+                    </div>
+                    <div class="timer-display" id="dashTimer">00:00</div>
+                    <div class="timer-controls">
+                        <button class="btn btn-success btn-lg" id="dashTimerBtn" onclick="toggleDashboardTimer()">
+                            <span>▶</span> Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calculator -->
+        <section id="page-calculator" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">🧮</span>
+                    Flight Calculator
+                </h1>
+                <p class="page-subtitle">Calculate accurate flight performance using aviation physics</p>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="card-title mb-4">Select Aircraft Type</h3>
+                <div class="aircraft-grid" id="aircraftGrid"></div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">📐</span>
+                            Specifications
+                        </h3>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label class="form-label">Wingspan</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specWingspan" placeholder="120">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">cm</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Weight</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specWeight" placeholder="500">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">g</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label class="form-label">Wing Area</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specWingArea" placeholder="1500">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">cm²</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Aspect Ratio</label>
+                            <input type="number" class="form-input" id="specAspect" placeholder="6.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label class="form-label">Motor Power</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specMotor" placeholder="100">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">W</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Battery</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specBattery" placeholder="2200">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">mAh</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label class="form-label">Voltage</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specVoltage" placeholder="11.1" step="0.1">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">V</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Air Density</label>
+                            <div class="flex gap-2">
+                                <input type="number" class="form-input" id="specDensity" placeholder="1.225" step="0.001">
+                                <span class="form-input" style="width: 60px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated);">kg/m³</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="calculatePerformance()">
+                        Calculate Performance
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">📊</span>
+                            Results
+                        </h3>
+                    </div>
+                    <div id="calcResults">
+                        <div class="empty-state">
+                            <div class="icon">📈</div>
+                            <h3>Enter specifications</h3>
+                            <p>Fill in the aircraft specs and click Calculate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <span class="icon">⭐</span>
+                        Flight Suitability Score
+                    </h3>
+                </div>
+                <div class="flex items-center gap-6" style="flex-wrap: wrap;">
+                    <div class="score-container" style="flex: 1; min-width: 200px;">
+                        <div class="score-ring">
+                            <svg width="160" height="160" viewBox="0 0 160 160">
+                                <circle class="score-bg" cx="80" cy="80" r="70"/>
+                                <circle class="score-progress" cx="80" cy="80" r="70" id="scoreRing"/>
+                            </svg>
+                            <div class="score-value" id="suitabilityValue">--</div>
+                        </div>
+                        <div class="score-label">Overall Score</div>
+                    </div>
+                    <div style="flex: 2; min-width: 280px;">
+                        <div class="results-grid">
+                            <div class="result-item">
+                                <div class="label">Wing Loading</div>
+                                <div class="value" id="resWingLoad">--</div>
+                                <div class="unit">g/dm²</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">T/W Ratio</div>
+                                <div class="value" id="resThrustWeight">--</div>
+                                <div class="unit">:1</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Cl Max</div>
+                                <div class="value" id="resClMax">--</div>
+                                <div class="unit">coefficient</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Cd Min</div>
+                                <div class="value" id="resCdMin">--</div>
+                                <div class="unit">coefficient</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Weather -->
+        <section id="page-weather" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">🌤️</span>
+                    Weather
+                </h1>
+                <p class="page-subtitle">Real-time weather data for flight planning</p>
+            </div>
+
+            <div class="card mb-6">
+                <div class="flex gap-4 items-center" style="flex-wrap: wrap;">
+                    <input type="text" class="form-input" id="weatherCity" placeholder="Enter city name..." style="flex: 1; min-width: 200px;">
+                    <button class="btn btn-primary" onclick="fetchWeather()">
+                        Search
+                    </button>
+                    <button class="btn btn-secondary" onclick="detectLocation()">
+                        📍 Use Location
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-6">
+                <div class="card">
+                    <div class="weather-main" style="margin: -24px -24px 24px; border-radius: 16px 16px 0 0;">
+                        <div class="weather-icon" id="mainWeatherIcon">☀️</div>
+                        <div class="weather-temp" id="mainTemp">--°C</div>
+                        <div class="weather-desc" id="mainDesc">Search for a location</div>
+                        <div class="weather-location" id="mainLocation">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span>--</span>
+                        </div>
+                    </div>
+                    <div class="weather-details">
+                        <div class="weather-detail">
+                            <div class="icon">💨</div>
+                            <div class="value" id="mainWind">--</div>
+                            <div class="label">Wind (km/h)</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="icon">🧭</div>
+                            <div class="value" id="mainWindDir">--</div>
+                            <div class="label">Direction</div>
+                        </div>
+                        <div class="weather-detail">
+                            <div class="icon">💧</div>
+                            <div class="value" id="mainHumidity">--</div>
+                            <div class="label">Humidity (%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">✈</span>
+                            Flying Assessment
+                        </h3>
+                    </div>
+                    <div id="flyingAssessment">
+                        <div class="alert alert-success">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                            <span>Excellent conditions for RC flying!</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="label">Cloud Base</div>
+                                <div class="value" id="cloudBase">--</div>
+                                <div class="unit">m AGL</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Pressure</div>
+                                <div class="value" id="pressure">--</div>
+                                <div class="unit">hPa</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <span class="icon">🌅</span>
+                        Solar Information
+                    </h3>
+                </div>
+                <div class="grid grid-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Sunrise</div>
+                        <div class="metric-value" id="sunrise">--:--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Sunset</div>
+                        <div class="metric-value" id="sunset">--:--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Daylight</div>
+                        <div class="metric-value" id="daylight">--</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Simulator -->
+        <section id="page-simulator" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">🎮</span>
+                    Weather Simulator
+                </h1>
+                <p class="page-subtitle">Test how weather conditions affect flight performance</p>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">🎛</span>
+                            Weather Controls
+                        </h3>
+                    </div>
+
+                    <div class="range-group">
+                        <div class="range-header">
+                            <label class="form-label">Temperature</label>
+                            <span class="range-value" id="simTempVal">20°C</span>
+                        </div>
+                        <input type="range" class="form-range" id="simTemp" min="-20" max="50" value="20" oninput="updateSimulator()">
+                    </div>
+
+                    <div class="range-group">
+                        <div class="range-header">
+                            <label class="form-label">Wind Speed</label>
+                            <span class="range-value" id="simWindVal">10 km/h</span>
+                        </div>
+                        <input type="range" class="form-range" id="simWind" min="0" max="60" value="10" oninput="updateSimulator()">
+                    </div>
+
+                    <div class="range-group">
+                        <div class="range-header">
+                            <label class="form-label">Humidity</label>
+                            <span class="range-value" id="simHumidityVal">50%</span>
+                        </div>
+                        <input type="range" class="form-range" id="simHumidity" min="0" max="100" value="50" oninput="updateSimulator()">
+                    </div>
+
+                    <div class="range-group">
+                        <div class="range-header">
+                            <label class="form-label">Field Elevation</label>
+                            <span class="range-value" id="simAltVal">0 m</span>
+                        </div>
+                        <input type="range" class="form-range" id="simAlt" min="0" max="4000" value="0" oninput="updateSimulator()">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">📍</span>
+                            Density Altitude
+                        </h3>
+                    </div>
+                    <div class="metric-card mb-6" style="background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none;">
+                        <div class="metric-label" style="color: rgba(255,255,255,0.8);">Calculated DA</div>
+                        <div class="metric-value" style="-webkit-text-fill-color: white; color: white;" id="densityAlt">0</div>
+                        <div class="metric-unit" style="color: rgba(255,255,255,0.8);">feet</div>
+                    </div>
+
+                    <h4 class="card-title mb-4">Performance Impact</h4>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <div class="label">Lift Loss</div>
+                            <div class="value text-danger" id="liftLoss">0%</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="label">Thrust Loss</div>
+                            <div class="value text-warning" id="thrustLoss">0%</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="label">Range Loss</div>
+                            <div class="value text-primary" id="rangeLoss">0%</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="label">ROC Loss</div>
+                            <div class="value text-success" id="rocLoss">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <span class="icon">⚡</span>
+                        Corrected Performance
+                    </h3>
+                </div>
+                <div class="results-grid">
+                    <div class="result-item">
+                        <div class="label">Air Density (σ)</div>
+                        <div class="value" id="sigmaValue">1.000</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">TAS at IAS 60</div>
+                        <div class="value" id="tasValue">72</div>
+                        <div class="unit">km/h</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Stall Speed</div>
+                        <div class="value" id="stallSpeedSim">35</div>
+                        <div class="unit">km/h IAS</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Rate of Climb</div>
+                        <div class="value" id="rocSim">3.5</div>
+                        <div class="unit">m/s</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flights -->
+        <section id="page-flights" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">📋</span>
+                    Flight Log
+                </h1>
+                <p class="page-subtitle">Track and manage your flight history</p>
+            </div>
+
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <span class="icon">⏱</span>
+                        Active Session
+                    </h3>
+                </div>
+                <div class="timer-display" id="flightTimer">00:00:00</div>
+                <div class="grid grid-3 mb-6">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Aircraft</label>
+                        <select class="form-input form-select" id="flightAircraft">
+                            <option>Fixed Wing</option>
+                            <option>Quadcopter</option>
+                            <option>Hexacopter</option>
+                            <option>VTOL</option>
+                            <option>Helicopter</option>
+                            <option>Sailplane</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Max Altitude (m)</label>
+                        <input type="number" class="form-input" id="flightAlt" placeholder="120">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Battery Used (%)</label>
+                        <input type="number" class="form-input" id="flightBattery" placeholder="75" min="0" max="100">
+                    </div>
+                </div>
+                <div class="timer-controls">
+                    <button class="btn btn-success btn-lg" id="startFlightBtn" onclick="toggleFlight()">
+                        <span>▶</span> Start Flight
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <span class="icon">📜</span>
+                        History
+                    </h3>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="exportFlights()">Export</button>
+                        <button class="btn btn-danger btn-sm" onclick="clearFlights()">Clear</button>
+                    </div>
+                </div>
+                <div id="flightHistory">
+                    <div class="empty-state">
+                        <div class="icon">📝</div>
+                        <h3>No flights recorded</h3>
+                        <p>Start your first flight to see it here</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Models -->
+        <section id="page-models" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">🛩</span>
+                    Model Library
+                </h1>
+                <p class="page-subtitle">Browse 15 aircraft types with detailed specifications</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="filterModels('all')">All (15)</button>
+                <button class="tab-btn" onclick="filterModels('multirotor')">Multirotor (4)</button>
+                <button class="tab-btn" onclick="filterModels('fixed')">Fixed Wing (8)</button>
+                <button class="tab-btn" onclick="filterModels('special')">Special (3)</button>
+            </div>
+
+            <div class="grid grid-3" id="modelLibrary"></div>
+        </section>
+
+        <!-- Compare -->
+        <section id="page-compare" class="page">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span class="icon">⚖</span>
+                    Compare Models
+                </h1>
+                <p class="page-subtitle">Side-by-side performance comparison</p>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="card-title mb-4">Select Models (2-4)</h3>
+                <div class="aircraft-grid" id="compareGrid"></div>
+            </div>
+
+            <div class="card">
+                <div class="table-wrapper">
+                    <table class="table" id="compareTable">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th id="cmp1Header">Model 1</th>
+                                <th id="cmp2Header">Model 2</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compareBody">
+                            <tr><td>Wingspan</td><td id="cmp1Span">--</td><td id="cmp2Span">--</td></tr>
+                            <tr><td>Weight</td><td id="cmp1Weight">--</td><td id="cmp2Weight">--</td></tr>
+                            <tr><td>Stall Speed</td><td id="cmp1Stall">--</td><td id="cmp2Stall">--</td></tr>
+                            <tr><td>Cruise Speed</td><td id="cmp1Cruise">--</td><td id="cmp2Cruise">--</td></tr>
+                            <tr><td>Max Speed</td><td id="cmp1Max">--</td><td id="cmp2Max">--</td></tr>
+                            <tr><td>Rate of Climb</td><td id="cmp1ROC">--</td><td id="cmp2ROC">--</td></tr>
+                            <tr><td>Wing Loading</td><td id="cmp1Load">--</td><td id="cmp2Load">--</td></tr>
+                            <tr><td>Endurance</td><td id="cmp1End">--</td><td id="cmp2End">--</td></tr>
+                            <tr><td>Best For</td><td id="cmp1Best">--</td><td id="cmp2Best">--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-status">
+                <span class="status-dot"></span>
+                <span>Systems Online</span>
+                <span id="currentTime"></span>
+            </div>
+            <div>aeroCheck v1.1 | Aviation Physics Engine</div>
+        </div>
+    </footer>
+
+    <script>
+        // Aircraft Database with realistic specs
+        const aircraft = [
+            { id: 'fixed', name: 'Fixed Wing', icon: '✈', cat: 'fixed', wingspan: 120, weight: 500, wingArea: 1500, aspect: 6.5, motor: 100, battery: 2200, voltage: 11.1, bestFor: 'General flying, training' },
+            { id: 'quad', name: 'Quadcopter', icon: '🚁', cat: 'multirotor', wingspan: 250, weight: 800, wingArea: 2500, aspect: 1, motor: 200, battery: 3000, voltage: 11.1, bestFor: 'Aerial photography' },
+            { id: 'hexa', name: 'Hexacopter', icon: '⬡', cat: 'multirotor', wingspan: 450, weight: 1500, wingArea: 4500, aspect: 1, motor: 400, battery: 5000, voltage: 22.2, bestFor: 'Heavy lift, professional' },
+            { id: 'vtol', name: 'VTOL', icon: '🔄', cat: 'fixed', wingspan: 100, weight: 600, wingArea: 1200, aspect: 5.5, motor: 150, battery: 3000, voltage: 14.8, bestFor: 'Transition flight' },
+            { id: 'heli', name: 'Helicopter', icon: '🚁', cat: 'rotor', wingspan: 80, weight: 400, wingArea: 800, aspect: 0.8, motor: 80, battery: 1500, voltage: 11.1, bestFor: '3D aerobatics' },
+            { id: 'sail', name: 'Sailplane', icon: '🪂', cat: 'fixed', wingspan: 180, weight: 300, wingArea: 3000, aspect: 10.8, motor: 50, battery: 1000, voltage: 7.4, bestFor: 'Thermal soaring' },
+            { id: 'delta', name: 'Delta Wing', icon: '🔺', cat: 'fixed', wingspan: 80, weight: 450, wingArea: 1000, aspect: 4.5, motor: 90, battery: 1800, voltage: 11.1, bestFor: 'Fast sport flying' },
+            { id: 'biplane', name: 'Biplane', icon: '✈', cat: 'fixed', wingspan: 100, weight: 700, wingArea: 1800, aspect: 5.5, motor: 120, battery: 2200, voltage: 11.1, bestFor: 'Scale flying' },
+            { id: 'wing', name: 'Flying Wing', icon: '🔻', cat: 'fixed', wingspan: 140, weight: 400, wingArea: 1600, aspect: 12.2, motor: 80, battery: 1800, voltage: 11.1, bestFor: 'Efficient cruise' },
+            { id: 'park', name: 'Park Flyer', icon: '🐦', cat: 'fixed', wingspan: 90, weight: 200, wingArea: 800, aspect: 5.0, motor: 30, battery: 800, voltage: 7.4, bestFor: 'Beginners' },
+            { id: 'warbird', name: 'Warbird', icon: '🛩', cat: 'fixed', wingspan: 140, weight: 1200, wingArea: 2500, aspect: 7.8, motor: 250, battery: 4000, voltage: 14.8, bestFor: 'Scale realism' },
+            { id: 'jet', name: 'Jet Turbine', icon: '🚀', cat: 'fixed', wingspan: 130, weight: 1800, wingArea: 2200, aspect: 7.7, motor: 400, battery: 0, voltage: 0, bestFor: 'High speed' },
+            { id: 'tri', name: 'Tricopter', icon: '③', cat: 'multirotor', wingspan: 200, weight: 500, wingArea: 2000, aspect: 1, motor: 120, battery: 2200, voltage: 11.1, bestFor: 'Lightweight agile' },
+            { id: 'octo', name: 'Octocopter', icon: '⑧', cat: 'multirotor', wingspan: 600, weight: 3000, wingArea: 8000, aspect: 1, motor: 800, battery: 8000, voltage: 22.2, bestFor: 'Cinema, heavy lift' },
+            { id: 'balloon', name: 'Hot Air Balloon', icon: '🎈', cat: 'special', wingspan: 100, weight: 100, wingArea: 5000, aspect: 0.2, motor: 20, battery: 500, voltage: 3.7, bestFor: 'Casual, indoor' }
+        ];
+
+        // State
+        let state = {
+            selectedAircraft: 'fixed',
+            compareAircraft: ['fixed', 'quad'],
+            flights: [],
+            timerRunning: false,
+            timerStart: 0,
+            timerElapsed: 0,
+            dashTimerRunning: false,
+            dashTimerStart: 0,
+            dashTimerElapsed: 0,
+            weather: { temp: 20, wind: 10, humidity: 50 }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            initNavigation();
+            initAircraftGrid();
+            initCompareGrid();
+            initModels();
+            updateTime();
+            setInterval(updateTime, 1000);
+            loadFlights();
+            updateDashboard();
+            updateSimulator();
+            detectLocation();
+            startTimers();
+        });
+
+        function loadState() {
+            const saved = localStorage.getItem('aerocheck_v2');
+            if (saved) {
+                const data = JSON.parse(saved);
+                state.flights = data.flights || [];
+                state.selectedAircraft = data.selectedAircraft || 'fixed';
+                state.compareAircraft = data.compareAircraft || ['fixed', 'quad'];
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('aerocheck_v2', JSON.stringify({
+                flights: state.flights,
+                selectedAircraft: state.selectedAircraft,
+                compareAircraft: state.compareAircraft
+            }));
+        }
+
+        // Navigation
+        function initNavigation() {
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    showPage(link.dataset.page);
+                });
+            });
+        }
+
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            document.querySelector(`.nav-link[data-page="${page}"]`)?.classList.add('active');
+            document.getElementById('navLinks').classList.remove('open');
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('navLinks').classList.toggle('open');
+        }
+
+        // Aircraft Selection
+        function initAircraftGrid() {
+            const grid = document.getElementById('aircraftGrid');
+            grid.innerHTML = aircraft.map(a => `
+                <button class="aircraft-btn ${a.id === state.selectedAircraft ? 'selected' : ''}" onclick="selectAircraft('${a.id}')">
+                    <div class="icon">${a.icon}</div>
+                    <div class="name">${a.name}</div>
+                </button>
+            `).join('');
+        }
+
+        function selectAircraft(id) {
+            state.selectedAircraft = id;
+            const ac = aircraft.find(a => a.id === id);
+            document.getElementById('specWingspan').value = ac.wingspan;
+            document.getElementById('specWeight').value = ac.weight;
+            document.getElementById('specWingArea').value = ac.wingArea;
+            document.getElementById('specAspect').value = ac.aspect;
+            document.getElementById('specMotor').value = ac.motor;
+            document.getElementById('specBattery').value = ac.battery;
+            document.getElementById('specVoltage').value = ac.voltage;
+            initAircraftGrid();
+        }
+
+        // Accurate Physics Calculations
+        function calculatePerformance() {
+            // Get inputs
+            const b = parseFloat(document.getElementById('specWingspan').value) / 100; // m
+            const W = parseFloat(document.getElementById('specWeight').value) * 9.81 / 1000; // N to kN
+            const S = parseFloat(document.getElementById('specWingArea').value) / 10000; // cm² to m²
+            const AR = parseFloat(document.getElementById('specAspect').value);
+            const P = parseFloat(document.getElementById('specMotor').value);
+            const V = parseFloat(document.getElementById('specVoltage').value);
+            const rho = parseFloat(document.getElementById('specDensity').value);
+
+            // Wing loading (g/dm²)
+            const wingLoad = (parseFloat(document.getElementById('specWeight').value) / (parseFloat(document.getElementById('specWingArea').value) / 100)) * 10;
+
+            // Oswald efficiency factor
+            const e = 0.8;
+            
+            // Parasitic drag coefficient (estimated)
+            const Cdp = 0.02 + (AR > 8 ? 0.01 : 0);
+            
+            // Lift coefficient at stall (typical RC aircraft)
+            const Cl_max = 0.8 + (AR < 6 ? 0.3 : 0);
+            
+            // Minimum drag coefficient
+            const Cd_min = Cdp + 0.02; // includes parasitic + induced at minimum
+
+            // Stall speed (m/s) - exact formula
+            const Vs = Math.sqrt((2 * W * 1000) / (rho * S * Cl_max)) / 3.6; // km/h
+
+            // Cruise speed (typically 1.3-1.5 x stall)
+            const Vc = Vs * 1.4;
+
+            // Maximum speed (motor limited)
+            const P_watts_per_kg = P / (parseFloat(document.getElementById('specWeight').value) / 1000);
+            const Vmax = Math.min(Vs * 2.5, 80 + P_watts_per_kg * 2);
+
+            // Thrust estimation
+            const eta_prop = 0.7;
+            const thrust = (P * eta_prop) / Math.max(Vc / 3.6, 5); // N
+
+            // Thrust-to-weight ratio
+            const TW = thrust / (W * 1000);
+
+            // Rate of climb (using excess power)
+            const ROC = Math.max(0, (thrust * Vc / 3.6 - drag(Vc, S, Cl_max, Cd_min, AR, rho)) / W) * 3;
+
+            // Glide ratio
+            const L_D_max = Math.sqrt(Math.PI * AR * e / (4 * Cdp));
+
+            // Turn performance
+            const V_turn = Vc * 1.2;
+            const bank_angle = 30 * Math.PI / 180; // 30 degrees
+            const turn_rate = (9.81 * Math.tan(bank_angle)) / V_turn * (180 / Math.PI); // deg/s
+            const turn_radius = (V_turn * V_turn) / (9.81 * Math.tan(bank_angle)) / 3.6; // km to m
+
+            // Endurance
+            const capacity_Ah = parseFloat(document.getElementById('specBattery').value) / 1000;
+            const I = V > 0 ? P / V : 5; // amps
+            const endurance = V > 0 ? (capacity_Ah / I) * 60 * 0.7 : 20;
+
+            // Update results display
+            document.getElementById('calcResults').innerHTML = `
+                <div class="results-grid mb-4">
+                    <div class="result-item">
+                        <div class="label">Stall Speed</div>
+                        <div class="value">${Vs.toFixed(1)}</div>
+                        <div class="unit">km/h</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Cruise Speed</div>
+                        <div class="value">${Vc.toFixed(1)}</div>
+                        <div class="unit">km/h</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Max Speed</div>
+                        <div class="value">${Vmax.toFixed(1)}</div>
+                        <div class="unit">km/h</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Rate of Climb</div>
+                        <div class="value">${ROC.toFixed(1)}</div>
+                        <div class="unit">m/s</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Glide Ratio</div>
+                        <div class="value">${L_D_max.toFixed(1)}</div>
+                        <div class="unit">:1</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Turn Radius</div>
+                        <div class="value">${turn_radius.toFixed(0)}</div>
+                        <div class="unit">m</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Turn Rate</div>
+                        <div class="value">${turn_rate.toFixed(1)}</div>
+                        <div class="unit">°/s</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="label">Endurance</div>
+                        <div class="value">${endurance.toFixed(0)}</div>
+                        <div class="unit">min</div>
+                    </div>
+                </div>
+            `;
+
+            // Update suitability metrics
+            document.getElementById('resWingLoad').textContent = wingLoad.toFixed(1);
+            document.getElementById('resThrustWeight').textContent = TW.toFixed(2);
+            document.getElementById('resClMax').textContent = Cl_max.toFixed(2);
+            document.getElementById('resCdMin').textContent = Cd_min.toFixed(3);
+
+            // Calculate suitability score
+            const score = calcSuitability(wingLoad, TW, state.weather.wind);
+            updateScoreRing(score);
+        }
+
+        function drag(V, S, Cl, Cd_min, AR, rho) {
+            const e = 0.8;
+            const Cdi = Cl * Cl / (Math.PI * AR * e);
+            const Cd = Cd_min + Cdi;
+            return 0.5 * rho * (V / 3.6) * (V / 3.6) * S * Cd;
+        }
+
+        function calcSuitability(wingLoad, TW, wind) {
+            let score = 100;
+            
+            // Wing loading (ideal: 25-50 g/dm² for sport)
+            if (wingLoad < 20) score -= 15;
+            else if (wingLoad > 80) score -= 30;
+            else if (wingLoad > 60) score -= 15;
+            
+            // Thrust/weight (0.5+ is good)
+            if (TW < 0.3) score -= 35;
+            else if (TW < 0.5) score -= 20;
+            else if (TW > 2) score -= 10;
+            
+            // Wind (10-20 km/h ideal)
+            if (wind > 25) score -= 40;
+            else if (wind > 18) score -= 20;
+            else if (wind > 12) score -= 10;
+            
+            return Math.max(0, Math.min(100, score));
+        }
+
+        function updateScoreRing(score) {
+            const ring = document.getElementById('scoreRing');
+            const value = document.getElementById('suitabilityValue');
+            const circumference = 440;
+            const offset = circumference - (score / 100) * circumference;
+            
+            ring.style.strokeDashoffset = offset;
+            ring.style.stroke = score >= 70 ? 'var(--accent)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
+            value.textContent = Math.round(score);
+            value.style.color = score >= 70 ? 'var(--accent)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
+        }
+
+        // Weather
+        async function detectLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude),
+                    () => fetchWeatherByCoords(51.5074, -0.1278)
+                );
+            } else {
+                fetchWeatherByCoords(51.5074, -0.1278);
+            }
+        }
+
+        async function fetchWeatherByCoords(lat, lon) {
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover&timezone=auto`);
+                const data = await res.json();
+                const c = data.current;
+                
+                state.weather.temp = c.temperature_2m;
+                state.weather.wind = c.wind_speed_10m;
+                state.weather.humidity = c.relative_humidity_2m;
+                
+                updateWeatherDisplay(c);
+                updateFlightCondition(c.wind_speed_10m, c.temperature_2m);
+            } catch (e) {
+                useDemoWeather();
+            }
+        }
+
+        function updateWeatherDisplay(c) {
+            const icon = getWeatherIcon(c.weather_code);
+            const desc = getWeatherDesc(c.weather_code);
+            
+            ['dash', 'main'].forEach(prefix => {
+                document.getElementById(prefix + 'WeatherIcon').textContent = icon;
+                document.getElementById(prefix + 'Temp').textContent = Math.round(c.temperature_2m) + '°C';
+                document.getElementById(prefix + 'Desc').textContent = desc;
+                document.getElementById(prefix + 'Humidity').textContent = Math.round(c.relative_humidity_2m);
+                document.getElementById(prefix + 'Wind').textContent = Math.round(c.wind_speed_10m);
+            });
+            
+            document.getElementById('mainWindDir').textContent = c.wind_direction_10m + '°';
+            document.getElementById('mainLocation').querySelector('span').textContent = 'Lat: ' + lat.toFixed(2) + ' Lon: ' + lon.toFixed(2);
+            document.getElementById('dashLocation').textContent = 'Current Location';
+            
+            // Cloud base estimation
+            const cloudBase = Math.round(400 * (30 - c.relative_humidity_2m / 3));
+            document.getElementById('cloudBase').textContent = cloudBase > 0 ? cloudBase : '--';
+        }
+
+        function getWeatherIcon(code) {
+            if (code === 0) return '☀️';
+            if (code <= 3) return '⛅';
+            if (code <= 48) return '🌫';
+            if (code <= 65) return '🌧';
+            if (code <= 75) return '❄️';
+            return '⛈';
+        }
+
+        function getWeatherDesc(code) {
+            const codes = { 0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Foggy', 51: 'Light drizzle', 61: 'Light rain', 63: 'Moderate rain', 71: 'Light snow', 95: 'Thunderstorm' };
+            return codes[code] || 'Unknown';
+        }
+
+        function updateFlightCondition(wind, temp) {
+            const text = document.getElementById('flightConditionText');
+            const score = document.getElementById('conditionScore');
+            const assessment = document.getElementById('flyingAssessment');
+            
+            if (wind > 30 || temp < -5 || temp > 40) {
+                text.textContent = 'Conditions not suitable for flying!';
+                score.textContent = 'Poor';
+                score.style.color = 'var(--danger)';
+                assessment.innerHTML = '<div class="alert alert-danger"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><span>Unsafe conditions - do not fly!</span></div>';
+            } else if (wind > 20 || temp < 5 || temp > 35) {
+                text.textContent = 'Exercise caution - marginal conditions';
+                score.textContent = 'Moderate';
+                score.style.color = 'var(--warning)';
+                assessment.innerHTML = '<div class="alert alert-warning"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><span>Experienced pilots only</span></div>';
+            } else {
+                text.textContent = 'Weather conditions are excellent for flying!';
+                score.textContent = 'Good';
+                score.style.color = 'var(--accent)';
+                assessment.innerHTML = '<div class="alert alert-success"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span>Excellent conditions for RC flying!</span></div>';
+            }
+        }
+
+        async function fetchWeather() {
+            const city = document.getElementById('weatherCity').value;
+            if (!city) return;
+            
+            try {
+                const geo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`);
+                const data = await geo.json();
+                if (data.length > 0) {
+                    fetchWeatherByCoords(data[0].lat, data[0].lon);
+                }
+            } catch (e) {
+                useDemoWeather();
+            }
+        }
+
+        function useDemoWeather() {
+            const c = { temperature_2m: 18, relative_humidity_2m: 65, weather_code: 2, wind_speed_10m: 12, wind_direction_10m: 225 };
+            state.weather = { temp: 18, wind: 12, humidity: 65 };
+            updateWeatherDisplay(c);
+            updateFlightCondition(12, 18);
+        }
+
+        // Simulator
+        function updateSimulator() {
+            const temp = parseFloat(document.getElementById('simTemp').value);
+            const wind = parseFloat(document.getElementById('simWind').value);
+            const humidity = parseFloat(document.getElementById('simHumidity').value);
+            const alt = parseFloat(document.getElementById('simAlt').value);
+
+            document.getElementById('simTempVal').textContent = temp + '°C';
+            document.getElementById('simWindVal').textContent = wind + ' km/h';
+            document.getElementById('simHumidityVal').textContent = humidity + '%';
+            document.getElementById('simAltVal').textContent = alt + ' m';
+
+            // ISA standard atmosphere
+            const isaTemp = 15 - (alt / 1000) * 2;
+            const tempDiff = temp - isaTemp;
+            
+            // Density altitude formula (simplified)
+            const pressureAlt = alt + (tempDiff * 120); // feet per degree
+            const densityAlt = Math.round(pressureAlt * 3.281); // to feet
+            
+            // Air density ratio (sigma)
+            const sigma = Math.exp(-alt / 8500) * (1 - 0.0001 * tempDiff);
+            
+            // Performance impacts
+            const liftLoss = Math.round((1 - sigma) * 100);
+            const thrustLoss = Math.round((1 - sigma) * 100 * 0.8);
+            const rangeLoss = Math.round((1 - sigma) * 100);
+            const rocLoss = Math.round((1 - sigma) * 100);
+
+            document.getElementById('densityAlt').textContent = densityAlt.toLocaleString();
+            document.getElementById('sigmaValue').textContent = sigma.toFixed(3);
+            document.getElementById('liftLoss').textContent = liftLoss + '%';
+            document.getElementById('thrustLoss').textContent = thrustLoss + '%';
+            document.getElementById('rangeLoss').textContent = rangeLoss + '%';
+            document.getElementById('rocLoss').textContent = rocLoss + '%';
+
+            // Corrected performance
+            const ias = 60; // km/h
+            const tas = Math.round(ias / Math.sqrt(sigma));
+            const stall = Math.round(35 / Math.sqrt(sigma));
+            const roc = (3.5 * sigma).toFixed(1);
+
+            document.getElementById('tasValue').textContent = tas;
+            document.getElementById('stallSpeedSim').textContent = stall;
+            document.getElementById('rocSim').textContent = roc;
+        }
+
+        // Timers
+        function startTimers() {
+            function updateTimers() {
+                let elapsed;
+                
+                // Dashboard timer
+                elapsed = state.dashTimerElapsed;
+                if (state.dashTimerRunning) elapsed += Date.now() - state.dashTimerStart;
+                document.getElementById('dashTimer').textContent = formatTimeShort(elapsed);
+
+                // Flight timer
+                elapsed = state.timerElapsed;
+                if (state.timerRunning) elapsed += Date.now() - state.timerStart;
+                document.getElementById('flightTimer').textContent = formatTimeLong(elapsed);
+
+                requestAnimationFrame(updateTimers);
+            }
+            requestAnimationFrame(updateTimers);
+        }
+
+        function toggleDashboardTimer() {
+            const btn = document.getElementById('dashTimerBtn');
+            if (state.dashTimerRunning) {
+                state.dashTimerRunning = false;
+                state.dashTimerElapsed += Date.now() - state.dashTimerStart;
+                btn.innerHTML = '<span>▶</span> Start';
+            } else {
+                state.dashTimerRunning = true;
+                state.dashTimerStart = Date.now();
+                btn.innerHTML = '<span>⏸</span> Pause';
+            }
+        }
+
+        function toggleFlight() {
+            const btn = document.getElementById('startFlightBtn');
+            if (state.timerRunning) {
+                state.timerRunning = false;
+                state.timerElapsed += Date.now() - state.timerStart;
+                saveFlight(state.timerElapsed);
+                btn.innerHTML = '<span>▶</span> Start Flight';
+                btn.className = 'btn btn-success btn-lg';
+            } else {
+                state.timerRunning = true;
+                state.timerStart = Date.now();
+                btn.innerHTML = '<span>⏹</span> End Flight';
+                btn.className = 'btn btn-danger btn-lg';
+            }
+        }
+
+        function saveFlight(duration) {
+            const flight = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                duration,
+                aircraft: document.getElementById('flightAircraft').value,
+                altitude: parseFloat(document.getElementById('flightAlt').value) || 0,
+                battery: parseFloat(document.getElementById('flightBattery').value) || 0
+            };
+            state.flights.push(flight);
+            saveState();
+            loadFlights();
+            updateDashboard();
+            
+            document.getElementById('flightAlt').value = '';
+            document.getElementById('flightBattery').value = '';
+            state.timerElapsed = 0;
+        }
+
+        function loadFlights() {
+            const container = document.getElementById('flightHistory');
+            if (state.flights.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><h3>No flights recorded</h3><p>Start your first flight to see it here</p></div>';
+                return;
+            }
+            
+            container.innerHTML = state.flights.slice().reverse().slice(0, 10).map(f => `
+                <div class="flight-item">
+                    <div class="flight-icon">✈</div>
+                    <div class="flight-info">
+                        <div class="flight-title">${f.aircraft}</div>
+                        <div class="flight-meta">
+                            <span>📅 ${new Date(f.date).toLocaleDateString()}</span>
+                            <span>⬆ ${f.altitude}m</span>
+                            <span>🔋 ${f.battery}%</span>
+                        </div>
+                    </div>
+                    <div class="flight-duration">${formatTimeShort(f.duration)}</div>
+                </div>
+            `).join('');
+        }
+
+        function formatTimeShort(ms) {
+            const m = Math.floor(ms / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function formatTimeLong(ms) {
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            const s = Math.floor((ms % 60000) / 1000);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function exportFlights() {
+            const blob = new Blob([JSON.stringify(state.flights, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `aerocheck-flights-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function clearFlights() {
+            if (confirm('Clear all flights?')) {
+                state.flights = [];
+                saveState();
+                loadFlights();
+                updateDashboard();
+            }
+        }
+
+        function updateDashboard() {
+            document.getElementById('totalFlights').textContent = state.flights.length;
+            const totalTime = state.flights.reduce((sum, f) => sum + f.duration, 0);
+            document.getElementById('totalFlightTime').textContent = (totalTime / 3600000).toFixed(1);
+        }
+
+        // Models
+        function initModels() {
+            renderModels('all');
+        }
+
+        function filterModels(cat) {
+            document.querySelectorAll('.tabs .tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(cat) || (cat === 'all' && btn.textContent.includes('All')));
+            });
+            renderModels(cat);
+        }
+
+        function renderModels(cat) {
+            const filtered = cat === 'all' ? aircraft : aircraft.filter(a => a.cat === cat);
+            document.getElementById('modelLibrary').innerHTML = filtered.map(a => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <span class="icon">${a.icon}</span>
+                            ${a.name}
+                        </h3>
+                    </div>
+                    <p class="text-muted mb-4" style="font-size: 0.875rem;">${a.bestFor}</p>
+                    <div class="grid" style="grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <div>
+                            <div class="text-muted" style="font-size: 0.625rem;">Wingspan</div>
+                            <div class="mono">${a.wingspan} cm</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.625rem;">Weight</div>
+                            <div class="mono">${a.weight} g</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.625rem;">Motor</div>
+                            <div class="mono">${a.motor} W</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.625rem;">Battery</div>
+                            <div class="mono">${a.battery} mAh</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block mt-4" onclick="selectAircraft('${a.id}'); showPage('calculator');">
+                        Calculate
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Compare
+        function initCompareGrid() {
+            const grid = document.getElementById('compareGrid');
+            grid.innerHTML = aircraft.slice(0, 8).map(a => `
+                <button class="aircraft-btn ${state.compareAircraft.includes(a.id) ? 'selected' : ''}" onclick="toggleCompare('${a.id}')">
+                    <div class="icon">${a.icon}</div>
+                    <div class="name">${a.name}</div>
+                </button>
+            `).join('');
+            updateComparison();
+        }
+
+        function toggleCompare(id) {
+            if (state.compareAircraft.includes(id)) {
+                if (state.compareAircraft.length > 2) {
+                    state.compareAircraft = state.compareAircraft.filter(a => a !== id);
+                }
+            } else if (state.compareAircraft.length < 4) {
+                state.compareAircraft.push(id);
+            }
+            saveState();
+            initCompareGrid();
+        }
+
+        function updateComparison() {
+            state.compareAircraft.slice(0, 2).forEach((id, i) => {
+                const a = aircraft.find(ac => ac.id === id);
+                const idx = i + 1;
+                
+                document.getElementById('cmp' + idx + 'Header').textContent = a.name;
+                document.getElementById('cmp' + idx + 'Span').textContent = a.wingspan + ' cm';
+                document.getElementById('cmp' + idx + 'Weight').textContent = a.weight + ' g';
+                document.getElementById('cmp' + idx + 'Best').textContent = a.bestFor;
+                
+                // Calculate
+                const S = a.wingArea / 10000;
+                const W = a.weight * 9.81 / 1000;
+                const rho = 1.225;
+                const Cl_max = 0.8 + (a.aspect < 6 ? 0.3 : 0);
+                const stall = Math.sqrt((2 * W * 1000) / (rho * S * Cl_max)) / 3.6;
+                const cruise = stall * 1.4;
+                const P = a.motor * 0.7;
+                const thrust = P / Math.max(cruise / 3.6, 5);
+                const roc = (thrust - W) / W * 3;
+                const wingLoad = (a.weight / (a.wingArea / 100)) * 10;
+                const endurance = a.voltage > 0 ? (a.battery / 1000 / (a.motor / a.voltage)) * 60 * 0.7 : 20;
+                
+                document.getElementById('cmp' + idx + 'Stall').textContent = stall.toFixed(0) + ' km/h';
+                document.getElementById('cmp' + idx + 'Cruise').textContent = cruise.toFixed(0) + ' km/h';
+                document.getElementById('cmp' + idx + 'Max').textContent = (stall * 2).toFixed(0) + ' km/h';
+                document.getElementById('cmp' + idx + 'ROC').textContent = Math.max(0, roc).toFixed(1) + ' m/s';
+                document.getElementById('cmp' + idx + 'Load').textContent = wingLoad.toFixed(1) + ' g/dm²';
+                document.getElementById('cmp' + idx + 'End').textContent = endurance.toFixed(0) + ' min';
+            });
+        }
+
+        // Utility
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
+        }
+
+        let lat = 51.5074, lon = -0.1278;
+    </script>
+</body>
+</html>
