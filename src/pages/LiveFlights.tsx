@@ -1,27 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plane,
   Radio,
   MapPin,
   Clock,
   Navigation,
-  ChevronRight,
   RefreshCw,
   Search,
   ArrowUp,
   ArrowDown,
-  Maximize2,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 
 interface Flight {
   icao24: string;
   callsign: string;
   origin_country: string;
-  time_position: number;
-  last_contact: number;
   longitude: number;
   latitude: number;
   baro_altitude: number;
@@ -29,7 +22,6 @@ interface Flight {
   velocity: number;
   heading: number;
   vertical_rate: number;
-  geo_altitude: number;
   squawk: string;
 }
 
@@ -42,8 +34,7 @@ export default function LiveFlights() {
   const [filter, setFilter] = useState('');
   const [stats, setStats] = useState({ total: 0, inAir: 0 });
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const mapInitialized = useRef(false);
 
   const fetchFlights = useCallback(async () => {
     try {
@@ -63,8 +54,6 @@ export default function LiveFlights() {
             icao24: state[0],
             callsign: state[1]?.trim() || 'Unknown',
             origin_country: state[2],
-            time_position: state[3],
-            last_contact: state[4],
             longitude: state[5],
             latitude: state[6],
             baro_altitude: state[7],
@@ -72,7 +61,6 @@ export default function LiveFlights() {
             velocity: state[9],
             heading: state[10],
             vertical_rate: state[11],
-            geo_altitude: state[13],
             squawk: state[14] || '',
           }));
 
@@ -113,83 +101,65 @@ export default function LiveFlights() {
   }, [filter, flights]);
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    if (!mapRef.current || mapInitialized.current || !window.L) return;
 
     const initMap = async () => {
-      const L = await import('leaflet');
-      await import('leaflet/dist/leaflet.css');
+      if (typeof window === 'undefined') return;
+      
+      const L = (window as any).L;
+      if (!L || mapInitialized.current) return;
 
       const map = L.map(mapRef.current!).setView([51.5, 10], 5);
       
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
         subdomains: 'abcd',
         maxZoom: 19,
       }).addTo(map);
 
-      mapInstanceRef.current = map;
+      mapInitialized.current = true;
     };
 
-    initMap();
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+    const loadLeaflet = () => {
+      if (document.querySelector('link[href*="leaflet"]')) {
+        initMap();
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+        
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = initMap;
+        document.body.appendChild(script);
       }
     };
+
+    loadLeaflet();
   }, []);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || flights.length === 0) return;
+    if (!mapRef.current || !window.L || flights.length === 0) return;
 
-    const updateMarkers = async () => {
-      const L = await import('leaflet');
+    const L = (window as any).L;
+    
+    document.querySelectorAll('.flight-marker-custom').forEach(el => el.remove());
+
+    flights.filter(f => !f.on_ground && f.latitude && f.longitude).slice(0, 50).forEach((flight) => {
+      const rotation = flight.heading || 0;
       
-      markersRef.current.forEach((marker: any) => marker.remove());
-      markersRef.current = [];
-
-      flights.filter(f => !f.on_ground && f.latitude && f.longitude).slice(0, 100).forEach((flight) => {
-        const rotation = flight.heading || 0;
-        
-        const icon = L.divIcon({
-          html: `
-            <div style="
-              transform: rotate(${rotation}deg);
-              width: 24px;
-              height: 24px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #22d3ee;
-              filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
-            ">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L4.5 20.3l.7.7L12 18l6.8 3 .7-.7z"/>
-              </svg>
-            </div>
-          `,
-          className: 'flight-marker',
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
-        });
-
-        const marker = L.marker([flight.latitude, flight.longitude], { icon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
-            <div style="color: #1a1a1a; font-family: monospace;">
-              <strong>${flight.callsign || 'Unknown'}</strong><br/>
-              Alt: ${Math.round(flight.baro_altitude)}m<br/>
-              Speed: ${Math.round((flight.velocity || 0) * 3.6)} km/h
-            </div>
-          `);
-
-        marker.on('click', () => setSelectedFlight(flight));
-        markersRef.current.push(marker);
+      const icon = L.divIcon({
+        html: `<div style="transform: rotate(${rotation}deg); width: 24px; height: 24px; color: #22d3ee; filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));">✈</div>`,
+        className: 'flight-marker-custom',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       });
-    };
 
-    updateMarkers();
+      L.marker([flight.latitude, flight.longitude], { icon })
+        .addTo(mapRef.current!)
+        .bindPopup(`<div style="color: #1a1a1a; font-family: monospace;"><strong>${flight.callsign}</strong><br/>Alt: ${Math.round(flight.baro_altitude)}m<br/>Speed: ${Math.round((flight.velocity || 0) * 3.6)} km/h</div>`);
+    });
   }, [flights]);
 
   function getHeadingDirection(heading: number): string {
@@ -219,18 +189,37 @@ export default function LiveFlights() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Aircraft" value={stats.total.toLocaleString()} icon={Plane} />
-        <StatCard label="In Air" value={stats.inAir.toLocaleString()} icon={Navigation} color="text-emerald-400" />
-        <StatCard label="On Ground" value={(stats.total - stats.inAir).toLocaleString()} icon={MapPin} />
-        <StatCard label="Last Update" value={lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--'} icon={Clock} />
+        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
+            <Plane className="w-4 h-4" /> Total Aircraft
+          </div>
+          <div className="text-2xl font-bold text-cyan-400">{stats.total.toLocaleString()}</div>
+        </div>
+        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
+            <Navigation className="w-4 h-4" /> In Air
+          </div>
+          <div className="text-2xl font-bold text-emerald-400">{stats.inAir.toLocaleString()}</div>
+        </div>
+        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
+            <MapPin className="w-4 h-4" /> On Ground
+          </div>
+          <div className="text-2xl font-bold text-zinc-300">{stats.total - stats.inAir}</div>
+        </div>
+        <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
+            <Clock className="w-4 h-4" /> Last Update
+          </div>
+          <div className="text-xl font-mono font-bold text-cyan-400">{lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--'}</div>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-zinc-800">
             <h2 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              Flight Map
+              <MapPin className="w-5 h-5" /> Flight Map
             </h2>
             <div className="flex items-center gap-2 text-sm text-zinc-400">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -243,8 +232,7 @@ export default function LiveFlights() {
         <div className="card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
-              <Plane className="w-5 h-5" />
-              Aircraft List
+              <Plane className="w-5 h-5" /> Aircraft List
             </h2>
             <span className="text-sm text-zinc-500">{filteredFlights.length} flights</span>
           </div>
@@ -264,12 +252,7 @@ export default function LiveFlights() {
             {filteredFlights.filter(f => !f.on_ground).slice(0, 30).map((flight) => (
               <button
                 key={flight.icao24}
-                onClick={() => {
-                  setSelectedFlight(flight);
-                  if (mapInstanceRef.current) {
-                    mapInstanceRef.current.setView([flight.latitude, flight.longitude], 8);
-                  }
-                }}
+                onClick={() => setSelectedFlight(flight)}
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
                   selectedFlight?.icao24 === flight.icao24
                     ? 'bg-cyan-500/10 border-cyan-500'
@@ -278,7 +261,7 @@ export default function LiveFlights() {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-mono font-bold text-cyan-400">{flight.callsign || 'Unknown'}</div>
+                    <div className="font-mono font-bold text-cyan-400">{flight.callsign}</div>
                     <div className="text-xs text-zinc-500">{flight.origin_country}</div>
                   </div>
                   <div className="text-right">
@@ -295,8 +278,7 @@ export default function LiveFlights() {
       {selectedFlight && (
         <div className="card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20">
           <h2 className="text-lg font-semibold text-cyan-400 mb-4 flex items-center gap-2">
-            <Navigation className="w-5 h-5" />
-            Selected Flight Details
+            <Navigation className="w-5 h-5" /> Selected Flight Details
           </h2>
           <div className="grid md:grid-cols-4 gap-4">
             <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
@@ -357,30 +339,8 @@ export default function LiveFlights() {
         <a href="https://opensky-network.org" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
           OpenSky Network
         </a>
-        . Updates every 15 seconds. Data may be delayed and is for informational purposes only.
+        . Updates every 15 seconds.
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  color = 'text-cyan-400',
-}: {
-  label: string;
-  value: string;
-  icon: any;
-  color?: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
-      <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
-        <Icon className="w-4 h-4" />
-        {label}
-      </div>
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
     </div>
   );
 }

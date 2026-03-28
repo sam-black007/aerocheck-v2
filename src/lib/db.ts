@@ -52,7 +52,8 @@ export async function clearAllFlights(): Promise<void> {
 
 export async function getSettings(): Promise<Settings | null> {
   const database = await initDB();
-  return database.get('settings', 'user-settings') || null;
+  const result = await database.get('settings', 'user-settings');
+  return result ?? null;
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
