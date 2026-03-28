@@ -1,10 +1,10 @@
 # aeroCheck - Model Aircraft Flight Calculator & Weather Tracker
 
-A comprehensive flight planning tool for hobbyist RC pilots featuring accurate aviation physics calculations and real-time weather data.
+A comprehensive flight planning tool for hobbyist RC pilots featuring accurate aviation physics calculations, real-time weather data, and live aircraft tracking.
 
 ## Live Demo
 
-🚀 **https://sam-black007.github.io/aerocheck/**
+🚀 **https://sam-black007.github.io/aerocheck-full/**
 
 ## Features
 
@@ -39,6 +39,16 @@ A comprehensive flight planning tool for hobbyist RC pilots featuring accurate a
 - G-force logging
 - Export to JSON
 
+### ✈️ Live Flight Tracking
+- Real-time aircraft positions via OpenSky Network
+- Searchable flight list
+- Detailed flight information:
+  - Callsign, origin country
+  - Altitude, speed, heading
+  - Vertical rate (climbing/descending)
+  - Squawk code
+- Position on map (Google Maps link)
+
 ### 📊 Analytics Dashboard
 - Flight history charts
 - Performance trends
@@ -70,8 +80,8 @@ A comprehensive flight planning tool for hobbyist RC pilots featuring accurate a
 
 ```bash
 # Clone the repository
-git clone https://github.com/sam-black007/aerocheck.git
-cd aerocheck
+git clone https://github.com/sam-black007/aerocheck-full.git
+cd aerocheck-full
 
 # Install dependencies
 npm install
@@ -92,18 +102,25 @@ npm run build
 | `/simulator` | Weather impact simulator |
 | `/weather` | Live weather & air quality |
 | `/flights` | Flight log and GPS tracking |
+| `/live` | Live aircraft tracking |
 | `/models` | Aircraft database |
 | `/analytics` | Flight analytics charts |
 | `/compare` | Model comparison |
 | `/settings` | Configuration |
 
-## API Keys (Optional)
+## Data Sources
 
-Weather APIs with free tiers:
+### Weather APIs (Optional API Keys)
 - OpenWeatherMap - 60 calls/min
 - WeatherAPI - 1M calls/month
 - Tomorrow.io - 500 calls/day
 - NOAA - Free
+
+### Live Flight Data
+- **OpenSky Network** - Real-time ADS-B flight tracking (free for non-commercial use)
+  - No API key required
+  - Updates every 30 seconds
+  - Covers Europe and parts of North America
 
 Add API keys in Settings page for premium features.
 

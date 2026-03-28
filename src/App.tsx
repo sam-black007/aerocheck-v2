@@ -5,6 +5,7 @@ import Calculator from './pages/Calculator';
 import Simulator from './pages/Simulator';
 import Weather from './pages/Weather';
 import Flights from './pages/Flights';
+import LiveFlights from './pages/LiveFlights';
 import Models from './pages/Models';
 import Analytics from './pages/Analytics';
 import Compare from './pages/Compare';
@@ -19,6 +20,7 @@ function App() {
         <Route path="/simulator" element={<Simulator />} />
         <Route path="/weather" element={<Weather />} />
         <Route path="/flights" element={<Flights />} />
+        <Route path="/live" element={<LiveFlights />} />
         <Route path="/models" element={<Models />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/compare" element={<Compare />} />

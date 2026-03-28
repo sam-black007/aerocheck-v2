@@ -4,9 +4,9 @@ import {
   Home,
   Calculator,
   Wind,
-  Cloud,
   CloudSun,
   BookOpen,
+  Radio,
   BarChart3,
   Scale,
   Settings,
@@ -25,6 +25,7 @@ const navItems = [
   { path: '/simulator', label: 'Simulator', icon: Wind },
   { path: '/weather', label: 'Weather', icon: CloudSun },
   { path: '/flights', label: 'Flights', icon: BookOpen },
+  { path: '/live', label: 'Live', icon: Radio },
   { path: '/models', label: 'Models', icon: Plane },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/compare', label: 'Compare', icon: Scale },
@@ -117,7 +118,7 @@ export default function Layout({ children }: LayoutProps) {
             {time.toLocaleTimeString()}
           </div>
           <div>
-            aeroCheck v1.0 | Aviation Physics Engine
+            aeroCheck v1.1 | Live Flight Tracking
           </div>
         </div>
       </footer>
