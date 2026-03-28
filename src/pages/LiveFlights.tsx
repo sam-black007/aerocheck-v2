@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Plane,
   Radio,
@@ -7,8 +8,12 @@ import {
   Navigation,
   ChevronRight,
   RefreshCw,
-  Filter,
   Search,
+  ArrowUp,
+  ArrowDown,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 
 interface Flight {
@@ -24,94 +29,61 @@ interface Flight {
   velocity: number;
   heading: number;
   vertical_rate: number;
-  sensors: number[];
   geo_altitude: number;
   squawk: string;
-  spi: boolean;
-  position_source: number;
-}
-
-interface FlightDetails extends Flight {
-  origin?: string;
-  destination?: string;
-  route?: string[];
 }
 
 export default function LiveFlights() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [filteredFlights, setFilteredFlights] = useState<Flight[]>([]);
-  const [selectedFlight, setSelectedFlight] = useState<FlightDetails | null>(null);
+  const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [filter, setFilter] = useState('');
-  const [stats, setStats] = useState({
-    total: 0,
-    inAir: 0,
-    onGround: 0,
-    avgAltitude: 0,
-    avgSpeed: 0,
-  });
+  const [stats, setStats] = useState({ total: 0, inAir: 0 });
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
 
   const fetchFlights = useCallback(async () => {
     try {
-      // OpenSky Network API - get all flights in view
+      setLoading(true);
       const response = await fetch(
-        'https://opensky-network.org/api/states/all?lamin=35&lomin=-15&lamax=72&lomax=35',
-        {
-          headers: {
-            'Accept': 'application/json',
-          },
-        }
+        'https://opensky-network.org/api/states/all?lamin=35&lomin=-15&lamax=72&lomax=35'
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch flights');
-      }
+      if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
       
       if (data.states) {
-        const flightData: Flight[] = data.states.map((state: any[]) => ({
-          icao24: state[0],
-          callsign: state[1]?.trim() || 'Unknown',
-          origin_country: state[2],
-          time_position: state[3],
-          last_contact: state[4],
-          longitude: state[5],
-          latitude: state[6],
-          baro_altitude: state[7],
-          on_ground: state[8],
-          velocity: state[9],
-          heading: state[10],
-          vertical_rate: state[11],
-          sensors: state[12] || [],
-          geo_altitude: state[13],
-          squawk: state[14] || '',
-          spi: state[15],
-          position_source: state[16],
-        })).filter((f: Flight) => f.latitude && f.longitude);
+        const flightData: Flight[] = data.states
+          .filter((state: any[]) => state[5] !== null && state[6] !== null)
+          .map((state: any[]) => ({
+            icao24: state[0],
+            callsign: state[1]?.trim() || 'Unknown',
+            origin_country: state[2],
+            time_position: state[3],
+            last_contact: state[4],
+            longitude: state[5],
+            latitude: state[6],
+            baro_altitude: state[7],
+            on_ground: state[8],
+            velocity: state[9],
+            heading: state[10],
+            vertical_rate: state[11],
+            geo_altitude: state[13],
+            squawk: state[14] || '',
+          }));
 
         setFlights(flightData);
         setFilteredFlights(flightData);
         setLastUpdate(new Date());
-        setError(null);
 
-        // Update stats
-        const inAir = flightData.filter((f) => !f.on_ground);
-        const avgAlt = inAir.reduce((sum, f) => sum + (f.baro_altitude || 0), 0) / Math.max(inAir.length, 1);
-        const avgSpeed = flightData.reduce((sum, f) => sum + (f.velocity || 0), 0) / Math.max(flightData.length, 1);
-
-        setStats({
-          total: flightData.length,
-          inAir: inAir.length,
-          onGround: flightData.filter((f) => f.on_ground).length,
-          avgAltitude: Math.round(avgAlt),
-          avgSpeed: Math.round(avgSpeed * 3.6), // m/s to km/h
-        });
+        const inAir = flightData.filter((f) => !f.on_ground).length;
+        setStats({ total: flightData.length, inAir });
       }
     } catch (err) {
-      setError('Unable to fetch live flights. Please try again.');
       console.error('Flight fetch error:', err);
     } finally {
       setLoading(false);
@@ -120,7 +92,7 @@ export default function LiveFlights() {
 
   useEffect(() => {
     fetchFlights();
-    const interval = setInterval(fetchFlights, 30000); // Update every 30 seconds
+    const interval = setInterval(fetchFlights, 15000);
     return () => clearInterval(interval);
   }, [fetchFlights]);
 
@@ -140,18 +112,85 @@ export default function LiveFlights() {
     }
   }, [filter, flights]);
 
-  function selectFlight(flight: Flight) {
-    const details: FlightDetails = {
-      ...flight,
-      origin: flight.callsign.substring(0, 3),
-      destination: flight.callsign.substring(3, 6),
-    };
-    setSelectedFlight(details);
-  }
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-  function formatTime(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleTimeString();
-  }
+    const initMap = async () => {
+      const L = await import('leaflet');
+      await import('leaflet/dist/leaflet.css');
+
+      const map = L.map(mapRef.current!).setView([51.5, 10], 5);
+      
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(map);
+
+      mapInstanceRef.current = map;
+    };
+
+    initMap();
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || flights.length === 0) return;
+
+    const updateMarkers = async () => {
+      const L = await import('leaflet');
+      
+      markersRef.current.forEach((marker: any) => marker.remove());
+      markersRef.current = [];
+
+      flights.filter(f => !f.on_ground && f.latitude && f.longitude).slice(0, 100).forEach((flight) => {
+        const rotation = flight.heading || 0;
+        
+        const icon = L.divIcon({
+          html: `
+            <div style="
+              transform: rotate(${rotation}deg);
+              width: 24px;
+              height: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #22d3ee;
+              filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.5));
+            ">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L4.5 20.3l.7.7L12 18l6.8 3 .7-.7z"/>
+              </svg>
+            </div>
+          `,
+          className: 'flight-marker',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        const marker = L.marker([flight.latitude, flight.longitude], { icon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div style="color: #1a1a1a; font-family: monospace;">
+              <strong>${flight.callsign || 'Unknown'}</strong><br/>
+              Alt: ${Math.round(flight.baro_altitude)}m<br/>
+              Speed: ${Math.round((flight.velocity || 0) * 3.6)} km/h
+            </div>
+          `);
+
+        marker.on('click', () => setSelectedFlight(flight));
+        markersRef.current.push(marker);
+      });
+    };
+
+    updateMarkers();
+  }, [flights]);
 
   function getHeadingDirection(heading: number): string {
     const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -161,262 +200,164 @@ export default function LiveFlights() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+            <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <Radio className="w-6 h-6 text-white" />
             </span>
-            Live Flights
+            <span className="bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">
+              Live Flight Tracker
+            </span>
           </h1>
-          <p className="text-zinc-400 mt-1">Real-time aircraft tracking powered by OpenSky Network</p>
+          <p className="text-zinc-400 mt-1">Real-time aircraft positions via OpenSky Network ADS-B</p>
         </div>
-        <button onClick={fetchFlights} className="btn btn-primary" disabled={loading}>
+        <button onClick={fetchFlights} className="btn btn-primary bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500" disabled={loading}>
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Total Flights" value={stats.total.toLocaleString()} icon={Plane} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Aircraft" value={stats.total.toLocaleString()} icon={Plane} />
         <StatCard label="In Air" value={stats.inAir.toLocaleString()} icon={Navigation} color="text-emerald-400" />
-        <StatCard label="On Ground" value={stats.onGround.toLocaleString()} icon={MapPin} />
-        <StatCard label="Avg Altitude" value={`${(stats.avgAltitude / 1000).toFixed(1)}k`} unit="m" icon={ChevronRight} />
-        <StatCard label="Avg Speed" value={stats.avgSpeed.toString()} unit="km/h" icon={Radio} />
+        <StatCard label="On Ground" value={(stats.total - stats.inAir).toLocaleString()} icon={MapPin} />
+        <StatCard label="Last Update" value={lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--'} icon={Clock} />
       </div>
-
-      {/* Last Update */}
-      {lastUpdate && (
-        <div className="text-sm text-zinc-500 flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          Last updated: {lastUpdate.toLocaleTimeString()} (updates every 30 seconds)
-        </div>
-      )}
-
-      {error && (
-        <div className="alert alert-danger">
-          <Plane className="w-5 h-5" />
-          <span>{error}</span>
-        </div>
-      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Flight List */}
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Plane className="w-5 h-5 text-primary" />
-              Aircraft ({filteredFlights.length.toLocaleString()})
+        <div className="lg:col-span-2 card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+            <h2 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              Flight Map
             </h2>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Search callsign, country..."
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="form-input pl-10 py-2 text-sm"
-              />
+            <div className="flex items-center gap-2 text-sm text-zinc-400">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              Live tracking
             </div>
           </div>
-
-          {loading && flights.length === 0 ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="animate-pulse h-16 bg-bg rounded-xl" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {filteredFlights.slice(0, 100).map((flight) => (
-                <button
-                  key={flight.icao24}
-                  onClick={() => selectFlight(flight)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all ${
-                    selectedFlight?.icao24 === flight.icao24
-                      ? 'bg-primary/10 border-primary'
-                      : 'bg-bg border-zinc-800 hover:border-zinc-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        flight.on_ground ? 'bg-zinc-700' : 'bg-primary/20'
-                      }`}>
-                        <Plane className={`w-5 h-5 ${flight.on_ground ? 'text-zinc-400' : 'text-primary'}`} />
-                      </div>
-                      <div>
-                        <div className="font-mono font-bold">{flight.callsign || 'Unknown'}</div>
-                        <div className="text-sm text-zinc-400">{flight.origin_country}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-sm font-medium ${flight.on_ground ? 'text-zinc-400' : 'text-emerald-400'}`}>
-                        {flight.on_ground ? 'Grounded' : `${Math.round(flight.baro_altitude || 0)}m`}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        {flight.velocity ? `${Math.round(flight.velocity * 3.6)} km/h` : '--'}
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {filteredFlights.length > 100 && (
-            <div className="text-center text-sm text-zinc-500 mt-4">
-              Showing 100 of {filteredFlights.length.toLocaleString()} flights
-            </div>
-          )}
+          <div ref={mapRef} className="h-[500px] w-full" />
         </div>
 
-        {/* Flight Details */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Navigation className="w-5 h-5 text-primary" />
-            Flight Details
-          </h2>
+        <div className="card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+              <Plane className="w-5 h-5" />
+              Aircraft List
+            </h2>
+            <span className="text-sm text-zinc-500">{filteredFlights.length} flights</span>
+          </div>
 
-          {selectedFlight ? (
-            <div className="space-y-4">
-              {/* Callsign & Status */}
-              <div className="text-center p-6 bg-gradient-to-b from-primary/10 to-transparent rounded-xl">
-                <div className="text-4xl font-mono font-bold text-primary">{selectedFlight.callsign}</div>
-                <div className="text-sm text-zinc-400 mt-1">{selectedFlight.origin_country}</div>
-                <div className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
-                  selectedFlight.on_ground ? 'bg-zinc-700 text-zinc-300' : 'bg-emerald-500/20 text-emerald-400'
-                }`}>
-                  {selectedFlight.on_ground ? 'On Ground' : 'In Flight'}
-                </div>
-              </div>
+          <div className="relative mb-4">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search callsign, country..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="form-input pl-10 py-2 text-sm bg-zinc-800/50 border-cyan-500/20"
+            />
+          </div>
 
-              {/* Route */}
-              <div className="bg-bg rounded-xl p-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Route</div>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {filteredFlights.filter(f => !f.on_ground).slice(0, 30).map((flight) => (
+              <button
+                key={flight.icao24}
+                onClick={() => {
+                  setSelectedFlight(flight);
+                  if (mapInstanceRef.current) {
+                    mapInstanceRef.current.setView([flight.latitude, flight.longitude], 8);
+                  }
+                }}
+                className={`w-full text-left p-3 rounded-xl border transition-all ${
+                  selectedFlight?.icao24 === flight.icao24
+                    ? 'bg-cyan-500/10 border-cyan-500'
+                    : 'bg-zinc-800/50 border-zinc-700/50 hover:border-cyan-500/50'
+                }`}
+              >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs text-zinc-500">Origin</div>
-                    <div className="font-mono font-semibold">{selectedFlight.origin?.replace('_', '') || '---'}</div>
-                  </div>
-                  <div className="flex items-center gap-2 text-zinc-500">
-                    <div className="w-8 h-px bg-zinc-600" />
-                    <Plane className="w-4 h-4" />
-                    <div className="w-8 h-px bg-zinc-600" />
+                    <div className="font-mono font-bold text-cyan-400">{flight.callsign || 'Unknown'}</div>
+                    <div className="text-xs text-zinc-500">{flight.origin_country}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-zinc-500">Destination</div>
-                    <div className="font-mono font-semibold">{selectedFlight.destination?.replace('_', '') || '---'}</div>
+                    <div className="text-sm font-mono text-emerald-400">{Math.round(flight.baro_altitude)}m</div>
+                    <div className="text-xs text-zinc-500">{Math.round((flight.velocity || 0) * 3.6)} km/h</div>
                   </div>
                 </div>
-              </div>
-
-              {/* Position */}
-              <div className="bg-bg rounded-xl p-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Position</div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Latitude</span>
-                    <span className="font-mono">{selectedFlight.latitude?.toFixed(4)}°</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Longitude</span>
-                    <span className="font-mono">{selectedFlight.longitude?.toFixed(4)}°</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Altitude</span>
-                    <span className="font-mono">{(selectedFlight.baro_altitude || 0).toLocaleString()} m</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Ground Alt</span>
-                    <span className="font-mono">{(selectedFlight.geo_altitude || 0).toLocaleString()} m</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Motion */}
-              <div className="bg-bg rounded-xl p-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Motion</div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Speed</span>
-                    <span className="font-mono">
-                      {selectedFlight.velocity ? `${(selectedFlight.velocity * 3.6).toFixed(1)} km/h` : '--'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Heading</span>
-                    <span className="font-mono">
-                      {selectedFlight.heading ? `${selectedFlight.heading.toFixed(0)}° ${getHeadingDirection(selectedFlight.heading)}` : '--'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Vertical Rate</span>
-                    <span className={`font-mono ${(selectedFlight.vertical_rate || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(selectedFlight.vertical_rate || 0) > 0 ? '↑' : '↓'} {Math.abs(selectedFlight.vertical_rate || 0).toFixed(0)} m/s
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Identification */}
-              <div className="bg-bg rounded-xl p-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Identification</div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">ICAO 24-bit</span>
-                    <span className="font-mono text-sm">{selectedFlight.icao24.toUpperCase()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Squawk</span>
-                    <span className="font-mono">{selectedFlight.squawk || '--'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-400">Last Contact</span>
-                    <span className="font-mono text-sm">{formatTime(selectedFlight.last_contact)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Map Placeholder */}
-              <div className="bg-bg rounded-xl p-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Map</div>
-                <div className="aspect-video bg-bg-elevated rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" />
-                    <div className="text-sm text-zinc-400">
-                      {selectedFlight.latitude?.toFixed(2)}°, {selectedFlight.longitude?.toFixed(2)}°
-                    </div>
-                    <a
-                      href={`https://www.google.com/maps?q=${selectedFlight.latitude},${selectedFlight.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline mt-2 block"
-                    >
-                      Open in Google Maps →
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-zinc-400">
-              <Plane className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Select a flight to view details</p>
-            </div>
-          )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Disclaimer */}
+      {selectedFlight && (
+        <div className="card bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-cyan-500/20">
+          <h2 className="text-lg font-semibold text-cyan-400 mb-4 flex items-center gap-2">
+            <Navigation className="w-5 h-5" />
+            Selected Flight Details
+          </h2>
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">Callsign</div>
+              <div className="text-xl font-mono font-bold text-cyan-400">{selectedFlight.callsign}</div>
+              <div className="text-xs text-zinc-500 mt-1">{selectedFlight.origin_country}</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">Altitude</div>
+              <div className="text-xl font-mono font-bold text-emerald-400">{Math.round(selectedFlight.baro_altitude)}m</div>
+              <div className="text-xs text-zinc-500 mt-1">{(selectedFlight.baro_altitude / 3.281).toFixed(0)} ft</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">Speed</div>
+              <div className="text-xl font-mono font-bold text-amber-400">{Math.round((selectedFlight.velocity || 0) * 3.6)} km/h</div>
+              <div className="text-xs text-zinc-500 mt-1">{Math.round((selectedFlight.velocity || 0) * 1.944)} kts</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">Heading</div>
+              <div className="text-xl font-mono font-bold text-purple-400">{Math.round(selectedFlight.heading)}° {getHeadingDirection(selectedFlight.heading)}</div>
+              <div className="flex items-center gap-1 mt-1">
+                {(selectedFlight.vertical_rate || 0) > 0 ? (
+                  <ArrowUp className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <ArrowDown className="w-3 h-3 text-red-400" />
+                )}
+                <span className="text-xs text-zinc-500">{Math.abs(selectedFlight.vertical_rate || 0).toFixed(0)} m/s</span>
+              </div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20 md:col-span-2">
+              <div className="text-sm text-zinc-400 mb-1">Position</div>
+              <div className="font-mono text-zinc-200">
+                {selectedFlight.latitude?.toFixed(4)}°, {selectedFlight.longitude?.toFixed(4)}°
+              </div>
+              <a
+                href={`https://www.google.com/maps?q=${selectedFlight.latitude},${selectedFlight.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-cyan-400 hover:text-cyan-300 mt-2 inline-block"
+              >
+                Open in Google Maps →
+              </a>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">Squawk</div>
+              <div className="text-xl font-mono font-bold text-orange-400">{selectedFlight.squawk || '--'}</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-xl p-4 border border-cyan-500/20">
+              <div className="text-sm text-zinc-400 mb-1">ICAO 24-bit</div>
+              <div className="text-lg font-mono text-zinc-300">{selectedFlight.icao24.toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center text-sm text-zinc-500">
         Flight data provided by{' '}
-        <a href="https://opensky-network.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+        <a href="https://opensky-network.org" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
           OpenSky Network
         </a>
-        . Data may be delayed and is for informational purposes only.
+        . Updates every 15 seconds. Data may be delayed and is for informational purposes only.
       </div>
     </div>
   );
@@ -425,24 +366,21 @@ export default function LiveFlights() {
 function StatCard({
   label,
   value,
-  unit,
   icon: Icon,
-  color = 'text-primary',
+  color = 'text-cyan-400',
 }: {
   label: string;
   value: string;
-  unit?: string;
   icon: any;
   color?: string;
 }) {
   return (
-    <div className="metric-card">
+    <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 p-4">
       <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider mb-2">
         <Icon className="w-4 h-4" />
         {label}
       </div>
       <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      {unit && <div className="text-sm text-zinc-500">{unit}</div>}
     </div>
   );
 }
